@@ -18,6 +18,7 @@ const SubscriptionSchema = z.object({
     p256dh: z.string(),
     auth: z.string(),
   }),
+  userAgent: z.string().optional(), // campo adicional del cliente para identificar el dispositivo
 });
 
 router.post('/subscribe', authMiddleware, async (req: Request, res: Response) => {

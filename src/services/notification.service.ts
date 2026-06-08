@@ -1,78 +1,74 @@
 import webpush from 'web-push';
 import prisma from '../lib/prisma';
 
-// Configurar las credenciales VAPID
-const email = process.env.VAPID_EMAIL || 'mailto:soporte@quiniela2026.com';
-const publicKey = process.env.VAPID_PUBLIC_KEY || '';
-const privateKey = process.env.VAPID_PRIVATE_KEY || '';
+// ── Configuración VAPID ───────────────────────────────────────────
+const VAPID_EMAIL  = process.env.VAPID_EMAIL   || 'mailto:soporte@quiniela2026.com';
+const VAPID_PUBLIC  = process.env.VAPID_PUBLIC_KEY  || '';
+const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY || '';
 
-if (publicKey && privateKey) {
-  webpush.setVapidDetails(email, publicKey, privateKey);
+if (VAPID_PUBLIC && VAPID_PRIVATE) {
+  webpush.setVapidDetails(VAPID_EMAIL, VAPID_PUBLIC, VAPID_PRIVATE);
 } else {
-  console.warn('⚠️ VAPID keys no están completamente configuradas. Las notificaciones push no se enviarán.');
+  console.warn('⚠️ VAPID keys no configuradas — las notificaciones push están desactivadas.');
 }
 
-/**
- * Registra o actualiza una suscripción de notificaciones push de un usuario.
- */
-export async function subscribeUser(usuarioId: string, subscription: any) {
+// ── Registrar / actualizar suscripción ────────────────────────────
+export async function subscribeUser(
+  usuarioId: string,
+  subscription: { endpoint: string; keys: { p256dh: string; auth: string }; userAgent?: string }
+) {
   const { endpoint, keys } = subscription;
-  if (!endpoint || !keys || !keys.p256dh || !keys.auth) {
-    throw new Error('Suscripción push inválida');
+  if (!endpoint || !keys?.p256dh || !keys?.auth) {
+    throw new Error('Payload de suscripción push inválido.');
   }
 
-  // Guardar en la base de datos (evitando duplicar por endpoint)
   return prisma.pushSubscription.upsert({
-    where: { endpoint },
-    create: {
-      usuarioId,
-      endpoint,
-      p256dh: keys.p256dh,
-      auth: keys.auth,
-    },
-    update: {
-      usuarioId,
-      p256dh: keys.p256dh,
-      auth: keys.auth,
-    },
+    where:  { endpoint },
+    create: { usuarioId, endpoint, p256dh: keys.p256dh, auth: keys.auth },
+    update: { usuarioId, p256dh: keys.p256dh, auth: keys.auth },
   });
 }
 
-/**
- * Envía una notificación a todas las suscripciones registradas.
- */
-export async function sendNotificationToAll(title: string, body: string, url: string = '/dashboard') {
+// ── Enviar a todos los usuarios suscritos ─────────────────────────
+export async function sendNotificationToAll(
+  title: string,
+  body: string,
+  url: string = '/dashboard',
+  tag: string = 'quiniela-resultado'
+) {
+  // Si no hay VAPID keys, no hacer nada (no lanzar error)
+  if (!VAPID_PUBLIC || !VAPID_PRIVATE) return;
+
   const subscriptions = await prisma.pushSubscription.findMany();
-  
+  if (subscriptions.length === 0) return;
+
   const payload = JSON.stringify({
     title,
     body,
-    icon: '/icons/icon.svg',
+    icon:  '/icons/icon.svg',
     badge: '/icons/icon.svg',
+    tag,
     data: { url },
   });
 
-  const promises = subscriptions.map(async (sub) => {
-    const pushSubscription = {
-      endpoint: sub.endpoint,
-      keys: {
-        p256dh: sub.p256dh,
-        auth: sub.auth,
-      },
-    };
-
+  const sends = subscriptions.map(async (sub) => {
     try {
-      await webpush.sendNotification(pushSubscription, payload);
-    } catch (error: any) {
-      // Si el navegador ya no acepta la suscripción (ej. expiró o bloqueado), la eliminamos
-      if (error.statusCode === 408 || error.statusCode === 410 || error.statusCode === 404) {
-        console.log(`❌ Eliminando suscripción inválida/expirada: ${sub.endpoint}`);
+      await webpush.sendNotification(
+        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+        payload,
+        { TTL: 60 * 60 * 24 } // 24 horas de TTL — llega aunque el dispositivo esté offline
+      );
+    } catch (err: any) {
+      // 404 / 410 → suscripción expirada o cancelada → limpiar
+      if (err.statusCode === 410 || err.statusCode === 404) {
+        console.log(`🗑️  Eliminando suscripción inválida: ${sub.endpoint.slice(0, 60)}...`);
         await prisma.pushSubscription.delete({ where: { id: sub.id } }).catch(() => {});
       } else {
-        console.error(`❌ Error al enviar notificación a ${sub.endpoint}:`, error.message);
+        console.error(`❌ Push error (${err.statusCode}): ${err.message}`);
       }
     }
   });
 
-  await Promise.all(promises);
+  await Promise.allSettled(sends);
+  console.log(`📲 Notificación enviada a ${subscriptions.length} suscriptor(es).`);
 }
