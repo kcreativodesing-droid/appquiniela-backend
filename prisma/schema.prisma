@@ -1,0 +1,116 @@
+// This is your Prisma schema file
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "linux-musl"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// TABLA: usuarios
+// ─────────────────────────────────────────────
+model Usuario {
+  id             String   @id @default(uuid())
+  cedula         String   @unique
+  nombre         String
+  telefono       String?
+  passwordHash   String   @map("password_hash")
+  puntosTotales  Int      @default(0) @map("puntos_totales")
+  rol            Rol      @default(USER)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  // Relaciones
+  predicciones      Prediccion[]
+  pushSubscriptions PushSubscription[]
+
+  @@index([cedula])
+  @@map("usuarios")
+}
+
+// ─────────────────────────────────────────────
+// TABLA: partidos
+// ─────────────────────────────────────────────
+model Partido {
+  id              String        @id @default(uuid())
+  apiFixtureId    String?       @unique @map("api_fixture_id")
+  equipoLocal     String        @map("equipo_local")
+  equipoVisitante String        @map("equipo_visitante")
+  fechaHora       DateTime      @map("fecha_hora")
+  golesLocal      Int?          @map("goles_local")
+  golesVisitante  Int?          @map("goles_visitante")
+  estado          EstadoPartido @default(Pendiente)
+  fase            String        @default("Grupos")
+  grupo           String?
+  // Para fases eliminatorias: referencia al slot de origen
+  slotLocal       String?       @map("slot_local")   // e.g. "1A" = 1er lugar grupo A
+  slotVisitante   String?       @map("slot_visitante")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  // Relaciones
+  predicciones    Prediccion[]
+
+  @@index([estado])
+  @@index([fechaHora])
+  @@index([fase])
+  @@map("partidos")
+}
+
+// ─────────────────────────────────────────────
+// TABLA: predicciones
+// ─────────────────────────────────────────────
+model Prediccion {
+  id                  String   @id @default(uuid())
+  usuarioId           String   @map("usuario_id")
+  partidoId           String   @map("partido_id")
+  predGolesLocal      Int      @map("pred_goles_local")
+  predGolesVisitante  Int      @map("pred_goles_visitante")
+  puntosObtenidos     Int?     @map("puntos_obtenidos")  // NULL hasta que termine
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  // Relaciones
+  usuario  Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  partido  Partido @relation(fields: [partidoId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, partidoId])
+  @@index([usuarioId])
+  @@index([partidoId])
+  @@map("predicciones")
+}
+
+// ─────────────────────────────────────────────
+// TABLA: push_subscriptions
+// ─────────────────────────────────────────────
+model PushSubscription {
+  id        String   @id @default(uuid())
+  usuarioId String   @map("usuario_id")
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@map("push_subscriptions")
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+enum EstadoPartido {
+  Pendiente
+  EnJuego   @map("En Juego")
+  Finalizado
+}
+
+enum Rol {
+  ADMIN
+  USER
+}
