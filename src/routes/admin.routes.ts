@@ -55,6 +55,23 @@ router.put('/partidos/:id', async (req: Request, res: Response) => {
     // Si se marca como Finalizado, calcular puntos automáticamente
     if (estado === 'Finalizado') {
       await calcularPuntosPartido(partido.id, golesLocal, golesVisitante);
+      
+      // Auto-generar la siguiente ronda/jornada del mundial si corresponde
+      const { checkAndGenerateNextPhase } = await import('../services/bracket.service');
+      await checkAndGenerateNextPhase();
+
+      // Enviar notificación a todos los usuarios
+      try {
+        const { sendNotificationToAll } = await import('../services/notification.service');
+        const golesTxt = `${partido.equipoLocal} ${golesLocal} - ${golesVisitante} ${partido.equipoVisitante}`;
+        await sendNotificationToAll(
+          '¡Resultado de Partido! 🏆',
+          `El partido de ${partido.fase} ha finalizado: ${golesTxt}`,
+          '/dashboard'
+        );
+      } catch (err: any) {
+        console.error('❌ Error al enviar notificaciones de partido finalizado:', err.message);
+      }
     }
 
     return res.json({ message: 'Partido actualizado correctamente', partido });

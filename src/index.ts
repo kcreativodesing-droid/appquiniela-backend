@@ -7,6 +7,7 @@ import partidosRoutes from './routes/partidos.routes';
 import prediccionesRoutes from './routes/predicciones.routes';
 import leaderboardRoutes from './routes/leaderboard.routes';
 import adminRoutes from './routes/admin.routes';
+import notificationsRoutes from './routes/notifications.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -29,6 +30,7 @@ app.use('/api/partidos', partidosRoutes);
 app.use('/api/predicciones', prediccionesRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 // ─── Error handler global ────────────────────────────────────────
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

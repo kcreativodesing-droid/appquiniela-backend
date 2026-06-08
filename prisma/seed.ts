@@ -2,190 +2,291 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
+
 const isClean = process.argv.includes('--clean') || process.env.CLEAN_SEED === 'true';
 
 async function main() {
-  console.log(isClean ? '🧹 Clean Seed — producción\n' : '🧪 Demo Seed completo\n');
+  if (isClean) {
+    console.log('🧹 Iniciando limpieza y configuración inicial (Clean Seed)...\n');
+  } else {
+    console.log('🧪 Iniciando prueba completa del sistema (Demo Seed)...\n');
+  }
 
+  // ─── 1. LIMPIAR TODO ──────────────────────────────────────────
+  console.log('🧹 Limpiando base de datos...');
   await prisma.prediccion.deleteMany();
   await prisma.partido.deleteMany();
   await prisma.usuario.deleteMany();
-  console.log('✅ Base de datos limpia\n');
+  console.log('   ✅ Base de datos limpia\n');
 
-  // ── ADMIN ──────────────────────────────────────────────────────
+  // ─── 2. CREAR USUARIOS ────────────────────────────────────────
+  console.log('👥 Creando usuarios...');
   const adminHash = await bcrypt.hash('admin2026', 10);
-  await prisma.usuario.create({
-    data: { cedula: '00000000', nombre: 'Administrador', telefono: '0414-0000000', passwordHash: adminHash, rol: 'ADMIN' },
+  const admin = await prisma.usuario.create({
+    data: {
+      cedula: '00000000',
+      nombre: 'Administrador',
+      telefono: '0414-0000000',
+      passwordHash: adminHash,
+      rol: 'ADMIN',
+    },
   });
-  console.log('✅ Admin creado (cédula: 00000000 / pass: admin2026)\n');
+  console.log(`   ✅ Admin: ${admin.nombre} (${admin.cedula})`);
 
-  // ── FASE DE GRUPOS (72 partidos) ────────────────────────────────
-  console.log('⚽ Creando fase de grupos...');
-  const gruposData = [
-    // Jornada 1
-    { e1: 'México',       e2: 'Sudáfrica',   f: '2026-06-11T15:00:00Z', gr: 'A', fase: 'Jornada 1' },
-    { e1: 'Rep. Corea',   e2: 'Rep. Checa',  f: '2026-06-11T22:00:00Z', gr: 'A', fase: 'Jornada 1' },
-    { e1: 'Canadá',       e2: 'Bosnia',      f: '2026-06-12T15:00:00Z', gr: 'B', fase: 'Jornada 1' },
-    { e1: 'EEUU',         e2: 'Paraguay',    f: '2026-06-12T21:00:00Z', gr: 'D', fase: 'Jornada 1' },
-    { e1: 'Catar',        e2: 'Suiza',       f: '2026-06-13T15:00:00Z', gr: 'B', fase: 'Jornada 1' },
-    { e1: 'Brasil',       e2: 'Marruecos',   f: '2026-06-13T18:00:00Z', gr: 'C', fase: 'Jornada 1' },
-    { e1: 'Haití',        e2: 'Escocia',     f: '2026-06-13T21:00:00Z', gr: 'C', fase: 'Jornada 1' },
-    { e1: 'Australia',    e2: 'Turquía',     f: '2026-06-14T00:00:00Z', gr: 'D', fase: 'Jornada 1' },
-    { e1: 'Alemania',     e2: 'Curazao',     f: '2026-06-14T13:00:00Z', gr: 'E', fase: 'Jornada 1' },
-    { e1: 'Países Bajos', e2: 'Japón',       f: '2026-06-14T16:00:00Z', gr: 'F', fase: 'Jornada 1' },
-    { e1: 'C. Marfil',    e2: 'Ecuador',     f: '2026-06-14T19:00:00Z', gr: 'E', fase: 'Jornada 1' },
-    { e1: 'Suecia',       e2: 'Túnez',       f: '2026-06-14T22:00:00Z', gr: 'F', fase: 'Jornada 1' },
-    { e1: 'España',       e2: 'Cabo Verde',  f: '2026-06-15T12:00:00Z', gr: 'H', fase: 'Jornada 1' },
-    { e1: 'Bélgica',      e2: 'Egipto',      f: '2026-06-15T15:00:00Z', gr: 'G', fase: 'Jornada 1' },
-    { e1: 'A. Saudí',     e2: 'Uruguay',     f: '2026-06-15T18:00:00Z', gr: 'H', fase: 'Jornada 1' },
-    { e1: 'Irán',         e2: 'N. Zelanda',  f: '2026-06-15T21:00:00Z', gr: 'G', fase: 'Jornada 1' },
-    { e1: 'Francia',      e2: 'Senegal',     f: '2026-06-16T15:00:00Z', gr: 'I', fase: 'Jornada 1' },
-    { e1: 'Irak',         e2: 'Noruega',     f: '2026-06-16T18:00:00Z', gr: 'I', fase: 'Jornada 1' },
-    { e1: 'Argentina',    e2: 'Argelia',     f: '2026-06-16T21:00:00Z', gr: 'J', fase: 'Jornada 1' },
-    { e1: 'Austria',      e2: 'Jordania',    f: '2026-06-17T00:00:00Z', gr: 'J', fase: 'Jornada 1' },
-    { e1: 'Portugal',     e2: 'RD Congo',    f: '2026-06-17T13:00:00Z', gr: 'K', fase: 'Jornada 1' },
-    { e1: 'Inglaterra',   e2: 'Croacia',     f: '2026-06-17T16:00:00Z', gr: 'L', fase: 'Jornada 1' },
-    { e1: 'Ghana',        e2: 'Panamá',      f: '2026-06-17T19:00:00Z', gr: 'L', fase: 'Jornada 1' },
-    { e1: 'Uzbekistán',   e2: 'Colombia',    f: '2026-06-17T22:00:00Z', gr: 'K', fase: 'Jornada 1' },
-    // Jornada 2
-    { e1: 'Rep. Checa',   e2: 'Sudáfrica',   f: '2026-06-18T12:00:00Z', gr: 'A', fase: 'Jornada 2' },
-    { e1: 'Suiza',        e2: 'Bosnia',      f: '2026-06-18T15:00:00Z', gr: 'B', fase: 'Jornada 2' },
-    { e1: 'Canadá',       e2: 'Catar',       f: '2026-06-18T18:00:00Z', gr: 'B', fase: 'Jornada 2' },
-    { e1: 'México',       e2: 'Rep. Corea',  f: '2026-06-18T21:00:00Z', gr: 'A', fase: 'Jornada 2' },
-    { e1: 'EEUU',         e2: 'Australia',   f: '2026-06-19T15:00:00Z', gr: 'D', fase: 'Jornada 2' },
-    { e1: 'Escocia',      e2: 'Marruecos',   f: '2026-06-19T18:00:00Z', gr: 'C', fase: 'Jornada 2' },
-    { e1: 'Brasil',       e2: 'Haití',       f: '2026-06-19T20:30:00Z', gr: 'C', fase: 'Jornada 2' },
-    { e1: 'Turquía',      e2: 'Paraguay',    f: '2026-06-20T23:00:00Z', gr: 'D', fase: 'Jornada 2' },
-    { e1: 'Países Bajos', e2: 'Suecia',      f: '2026-06-20T13:00:00Z', gr: 'F', fase: 'Jornada 2' },
-    { e1: 'Alemania',     e2: 'C. Marfil',   f: '2026-06-20T16:00:00Z', gr: 'E', fase: 'Jornada 2' },
-    { e1: 'Ecuador',      e2: 'Curazao',     f: '2026-06-20T20:00:00Z', gr: 'E', fase: 'Jornada 2' },
-    { e1: 'Túnez',        e2: 'Japón',       f: '2026-06-21T00:00:00Z', gr: 'F', fase: 'Jornada 2' },
-    { e1: 'España',       e2: 'A. Saudí',    f: '2026-06-21T12:00:00Z', gr: 'H', fase: 'Jornada 2' },
-    { e1: 'Bélgica',      e2: 'Irán',        f: '2026-06-21T15:00:00Z', gr: 'G', fase: 'Jornada 2' },
-    { e1: 'Uruguay',      e2: 'Cabo Verde',  f: '2026-06-21T18:00:00Z', gr: 'H', fase: 'Jornada 2' },
-    { e1: 'N. Zelanda',   e2: 'Egipto',      f: '2026-06-21T21:00:00Z', gr: 'G', fase: 'Jornada 2' },
-    { e1: 'Argentina',    e2: 'Austria',     f: '2026-06-22T14:00:00Z', gr: 'J', fase: 'Jornada 2' },
-    { e1: 'Jordania',     e2: 'Argelia',     f: '2026-06-22T16:00:00Z', gr: 'J', fase: 'Jornada 2' },
-    { e1: 'Francia',      e2: 'Irak',        f: '2026-06-22T17:00:00Z', gr: 'I', fase: 'Jornada 2' },
-    { e1: 'Noruega',      e2: 'Senegal',     f: '2026-06-22T20:00:00Z', gr: 'I', fase: 'Jornada 2' },
-    { e1: 'Portugal',     e2: 'Uzbekistán',  f: '2026-06-23T13:00:00Z', gr: 'K', fase: 'Jornada 2' },
-    { e1: 'Inglaterra',   e2: 'Ghana',       f: '2026-06-23T16:00:00Z', gr: 'L', fase: 'Jornada 2' },
-    { e1: 'Panamá',       e2: 'Croacia',     f: '2026-06-23T19:00:00Z', gr: 'L', fase: 'Jornada 2' },
-    { e1: 'Colombia',     e2: 'RD Congo',    f: '2026-06-23T22:00:00Z', gr: 'K', fase: 'Jornada 2' },
-    // Jornada 3
-    { e1: 'Suiza',        e2: 'Canadá',      f: '2026-06-24T16:00:00Z', gr: 'B', fase: 'Jornada 3' },
-    { e1: 'Bosnia',       e2: 'Catar',       f: '2026-06-24T16:00:00Z', gr: 'B', fase: 'Jornada 3' },
-    { e1: 'Rep. Checa',   e2: 'México',      f: '2026-06-24T19:00:00Z', gr: 'A', fase: 'Jornada 3' },
-    { e1: 'Sudáfrica',    e2: 'Rep. Corea',  f: '2026-06-24T19:00:00Z', gr: 'A', fase: 'Jornada 3' },
-    { e1: 'Marruecos',    e2: 'Haití',       f: '2026-06-25T18:00:00Z', gr: 'C', fase: 'Jornada 3' },
-    { e1: 'Escocia',      e2: 'Brasil',      f: '2026-06-25T18:00:00Z', gr: 'C', fase: 'Jornada 3' },
-    { e1: 'Paraguay',     e2: 'Australia',   f: '2026-06-25T22:00:00Z', gr: 'D', fase: 'Jornada 3' },
-    { e1: 'Turquía',      e2: 'EEUU',        f: '2026-06-25T22:00:00Z', gr: 'D', fase: 'Jornada 3' },
-    { e1: 'Curazao',      e2: 'C. Marfil',   f: '2026-06-26T16:00:00Z', gr: 'E', fase: 'Jornada 3' },
-    { e1: 'Ecuador',      e2: 'Alemania',    f: '2026-06-26T16:00:00Z', gr: 'E', fase: 'Jornada 3' },
-    { e1: 'Túnez',        e2: 'Países Bajos',f: '2026-06-26T16:00:00Z', gr: 'F', fase: 'Jornada 3' },
-    { e1: 'Japón',        e2: 'Suecia',      f: '2026-06-26T16:00:00Z', gr: 'F', fase: 'Jornada 3' },
-    { e1: 'Uruguay',      e2: 'España',      f: '2026-06-26T19:00:00Z', gr: 'H', fase: 'Jornada 3' },
-    { e1: 'Cabo Verde',   e2: 'A. Saudí',    f: '2026-06-26T19:00:00Z', gr: 'H', fase: 'Jornada 3' },
-    { e1: 'N. Zelanda',   e2: 'Bélgica',     f: '2026-06-26T23:00:00Z', gr: 'G', fase: 'Jornada 3' },
-    { e1: 'Egipto',       e2: 'Irán',        f: '2026-06-26T23:00:00Z', gr: 'G', fase: 'Jornada 3' },
-    { e1: 'Senegal',      e2: 'Irak',        f: '2026-06-27T13:00:00Z', gr: 'I', fase: 'Jornada 3' },
-    { e1: 'Noruega',      e2: 'Francia',     f: '2026-06-27T13:00:00Z', gr: 'I', fase: 'Jornada 3' },
-    { e1: 'Colombia',     e2: 'Portugal',    f: '2026-06-27T19:30:00Z', gr: 'K', fase: 'Jornada 3' },
-    { e1: 'RD Congo',     e2: 'Uzbekistán',  f: '2026-06-27T19:30:00Z', gr: 'K', fase: 'Jornada 3' },
-    { e1: 'Panamá',       e2: 'Inglaterra',  f: '2026-06-27T17:00:00Z', gr: 'L', fase: 'Jornada 3' },
-    { e1: 'Croacia',      e2: 'Ghana',       f: '2026-06-27T17:00:00Z', gr: 'L', fase: 'Jornada 3' },
-    { e1: 'Jordania',     e2: 'Argentina',   f: '2026-06-27T22:00:00Z', gr: 'J', fase: 'Jornada 3' },
-    { e1: 'Argelia',      e2: 'Austria',     f: '2026-06-27T22:00:00Z', gr: 'J', fase: 'Jornada 3' },
-  ];
+  const usuarios = [];
+  if (!isClean) {
+    const nombresUsuarios = [
+      { cedula: '12345678', nombre: 'Juan Pérez', telefono: '0414-1234567' },
+      { cedula: '23456789', nombre: 'María García', telefono: '0412-2345678' },
+      { cedula: '34567890', nombre: 'Carlos López', telefono: '0416-3456789' },
+      { cedula: '45678901', nombre: 'Ana Rodríguez', telefono: '0424-4567890' },
+      { cedula: '56789012', nombre: 'Luis Martínez', telefono: '0426-5678901' },
+      { cedula: '67890123', nombre: 'Sofía Hernández', telefono: '0412-6789012' },
+      { cedula: '78901234', nombre: 'Diego Ramírez', telefono: '0414-7890123' },
+      { cedula: '89012345', nombre: 'Valentina Torres', telefono: '0424-8901234' },
+      { cedula: '90123456', nombre: 'Andrés Morales', telefono: '0416-9012345' },
+      { cedula: '11223344', nombre: 'Camila Díaz', telefono: '0426-1122334' },
+    ];
 
-  for (const p of gruposData) {
-    await prisma.partido.create({
-      data: { equipoLocal: p.e1, equipoVisitante: p.e2, fechaHora: new Date(p.f), fase: p.fase, grupo: p.gr },
-    });
+    for (const u of nombresUsuarios) {
+      const hash = await bcrypt.hash('clave123', 10);
+      const user = await prisma.usuario.create({
+        data: { ...u, passwordHash: hash },
+      });
+      usuarios.push(user);
+      console.log(`   ✅ ${user.nombre} (${user.cedula})`);
+    }
+    console.log(`   Total: ${usuarios.length + 1} usuarios\n`);
   }
-  console.log(`✅ ${gruposData.length} partidos de grupo creados\n`);
 
-  // ── RONDA DE 32 (32 partidos, equipos TBD) ──────────────────────
-  // Los equipos se rellenarán automáticamente al finalizar Jornada 3
-  console.log('🏆 Creando fases eliminatorias (equipos TBD)...');
-
-  const R32: { e1: string; e2: string; f: string; sl: string; sv: string; fase: string }[] = [
-    // Partido 1: 1A vs 2B
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-01T18:00:00Z', sl: '1A', sv: '2B', fase: 'Ronda de 32' },
-    // Partido 2: 1B vs 2A
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-01T22:00:00Z', sl: '1B', sv: '2A', fase: 'Ronda de 32' },
-    // Partido 3: 1C vs 2D
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-02T18:00:00Z', sl: '1C', sv: '2D', fase: 'Ronda de 32' },
-    // Partido 4: 1D vs 2C
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-02T22:00:00Z', sl: '1D', sv: '2C', fase: 'Ronda de 32' },
-    // Partido 5: 1E vs 2F
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-03T18:00:00Z', sl: '1E', sv: '2F', fase: 'Ronda de 32' },
-    // Partido 6: 1F vs 2E
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-03T22:00:00Z', sl: '1F', sv: '2E', fase: 'Ronda de 32' },
-    // Partido 7: 1G vs 2H
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-04T18:00:00Z', sl: '1G', sv: '2H', fase: 'Ronda de 32' },
-    // Partido 8: 1H vs 2G
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-04T22:00:00Z', sl: '1H', sv: '2G', fase: 'Ronda de 32' },
-    // Partido 9: 1I vs 2J
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-05T18:00:00Z', sl: '1I', sv: '2J', fase: 'Ronda de 32' },
-    // Partido 10: 1J vs 2I
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-05T22:00:00Z', sl: '1J', sv: '2I', fase: 'Ronda de 32' },
-    // Partido 11: 1K vs 2L
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-06T18:00:00Z', sl: '1K', sv: '2L', fase: 'Ronda de 32' },
-    // Partido 12: 1L vs 2K
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-06T22:00:00Z', sl: '1L', sv: '2K', fase: 'Ronda de 32' },
-    // 4 mejores terceros
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-07T18:00:00Z', sl: '3A/B', sv: '3C/D', fase: 'Ronda de 32' },
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-07T22:00:00Z', sl: '3E/F', sv: '3G/H', fase: 'Ronda de 32' },
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-08T18:00:00Z', sl: '3I/J', sv: '3K/L', fase: 'Ronda de 32' },
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-08T22:00:00Z', sl: '3BEST', sv: '3BEST2', fase: 'Ronda de 32' },
+  // ─── 3. CREAR PARTIDOS (las 3 jornadas completas) ─────────────
+  console.log('⚽ Creando partidos...');
+  const partidosData = [
+    // Jornada 1
+    { equipoLocal: 'México', equipoVisitante: 'Sudáfrica', fechaHora: '2026-06-11T15:00:00Z', grupo: 'A', fase: 'Jornada 1' },
+    { equipoLocal: 'Rep. Corea', equipoVisitante: 'Rep. Checa', fechaHora: '2026-06-11T22:00:00Z', grupo: 'A', fase: 'Jornada 1' },
+    { equipoLocal: 'Canadá', equipoVisitante: 'Bosnia', fechaHora: '2026-06-12T15:00:00Z', grupo: 'B', fase: 'Jornada 1' },
+    { equipoLocal: 'EEUU', equipoVisitante: 'Paraguay', fechaHora: '2026-06-12T21:00:00Z', grupo: 'D', fase: 'Jornada 1' },
+    { equipoLocal: 'Catar', equipoVisitante: 'Suiza', fechaHora: '2026-06-13T15:00:00Z', grupo: 'B', fase: 'Jornada 1' },
+    { equipoLocal: 'Brasil', equipoVisitante: 'Marruecos', fechaHora: '2026-06-13T18:00:00Z', grupo: 'C', fase: 'Jornada 1' },
+    { equipoLocal: 'Haití', equipoVisitante: 'Escocia', fechaHora: '2026-06-13T21:00:00Z', grupo: 'C', fase: 'Jornada 1' },
+    { equipoLocal: 'Australia', equipoVisitante: 'Turquía', fechaHora: '2026-06-14T00:00:00Z', grupo: 'D', fase: 'Jornada 1' },
+    { equipoLocal: 'Alemania', equipoVisitante: 'Curazao', fechaHora: '2026-06-14T13:00:00Z', grupo: 'E', fase: 'Jornada 1' },
+    { equipoLocal: 'Países Bajos', equipoVisitante: 'Japón', fechaHora: '2026-06-14T16:00:00Z', grupo: 'F', fase: 'Jornada 1' },
+    { equipoLocal: 'C. Marfil', equipoVisitante: 'Ecuador', fechaHora: '2026-06-14T19:00:00Z', grupo: 'E', fase: 'Jornada 1' },
+    { equipoLocal: 'Suecia', equipoVisitante: 'Túnez', fechaHora: '2026-06-14T22:00:00Z', grupo: 'F', fase: 'Jornada 1' },
+    { equipoLocal: 'España', equipoVisitante: 'Cabo Verde', fechaHora: '2026-06-15T12:00:00Z', grupo: 'H', fase: 'Jornada 1' },
+    { equipoLocal: 'Bélgica', equipoVisitante: 'Egipto', fechaHora: '2026-06-15T15:00:00Z', grupo: 'G', fase: 'Jornada 1' },
+    { equipoLocal: 'A. Saudí', equipoVisitante: 'Uruguay', fechaHora: '2026-06-15T18:00:00Z', grupo: 'H', fase: 'Jornada 1' },
+    { equipoLocal: 'Irán', equipoVisitante: 'N. Zelanda', fechaHora: '2026-06-15T21:00:00Z', grupo: 'G', fase: 'Jornada 1' },
+    { equipoLocal: 'Francia', equipoVisitante: 'Senegal', fechaHora: '2026-06-16T15:00:00Z', grupo: 'I', fase: 'Jornada 1' },
+    { equipoLocal: 'Irak', equipoVisitante: 'Noruega', fechaHora: '2026-06-16T18:00:00Z', grupo: 'I', fase: 'Jornada 1' },
+    { equipoLocal: 'Argentina', equipoVisitante: 'Argelia', fechaHora: '2026-06-16T21:00:00Z', grupo: 'J', fase: 'Jornada 1' },
+    { equipoLocal: 'Austria', equipoVisitante: 'Jordania', fechaHora: '2026-06-17T00:00:00Z', grupo: 'J', fase: 'Jornada 1' },
+    { equipoLocal: 'Portugal', equipoVisitante: 'RD Congo', fechaHora: '2026-06-17T13:00:00Z', grupo: 'K', fase: 'Jornada 1' },
+    { equipoLocal: 'Inglaterra', equipoVisitante: 'Croacia', fechaHora: '2026-06-17T16:00:00Z', grupo: 'L', fase: 'Jornada 1' },
+    { equipoLocal: 'Ghana', equipoVisitante: 'Panamá', fechaHora: '2026-06-17T19:00:00Z', grupo: 'L', fase: 'Jornada 1' },
+    { equipoLocal: 'Uzbekistán', equipoVisitante: 'Colombia', fechaHora: '2026-06-17T22:00:00Z', grupo: 'K', fase: 'Jornada 1' },
+    // Jornada 2
+    { equipoLocal: 'Rep. Checa', equipoVisitante: 'Sudáfrica', fechaHora: '2026-06-18T12:00:00Z', grupo: 'A', fase: 'Jornada 2' },
+    { equipoLocal: 'Suiza', equipoVisitante: 'Bosnia', fechaHora: '2026-06-18T15:00:00Z', grupo: 'B', fase: 'Jornada 2' },
+    { equipoLocal: 'Canadá', equipoVisitante: 'Catar', fechaHora: '2026-06-18T18:00:00Z', grupo: 'B', fase: 'Jornada 2' },
+    { equipoLocal: 'México', equipoVisitante: 'Rep. Corea', fechaHora: '2026-06-18T21:00:00Z', grupo: 'A', fase: 'Jornada 2' },
+    { equipoLocal: 'EEUU', equipoVisitante: 'Australia', fechaHora: '2026-06-19T15:00:00Z', grupo: 'D', fase: 'Jornada 2' },
+    { equipoLocal: 'Escocia', equipoVisitante: 'Marruecos', fechaHora: '2026-06-19T18:00:00Z', grupo: 'C', fase: 'Jornada 2' },
+    { equipoLocal: 'Brasil', equipoVisitante: 'Haití', fechaHora: '2026-06-19T20:30:00Z', grupo: 'C', fase: 'Jornada 2' },
+    { equipoLocal: 'Turquía', equipoVisitante: 'Paraguay', fechaHora: '2026-06-20T23:00:00Z', grupo: 'D', fase: 'Jornada 2' },
+    { equipoLocal: 'Países Bajos', equipoVisitante: 'Suecia', fechaHora: '2026-06-20T13:00:00Z', grupo: 'F', fase: 'Jornada 2' },
+    { equipoLocal: 'Alemania', equipoVisitante: 'C. Marfil', fechaHora: '2026-06-20T16:00:00Z', grupo: 'E', fase: 'Jornada 2' },
+    { equipoLocal: 'Ecuador', equipoVisitante: 'Curazao', fechaHora: '2026-06-20T20:00:00Z', grupo: 'E', fase: 'Jornada 2' },
+    { equipoLocal: 'Túnez', equipoVisitante: 'Japón', fechaHora: '2026-06-21T00:00:00Z', grupo: 'F', fase: 'Jornada 2' },
+    { equipoLocal: 'España', equipoVisitante: 'A. Saudí', fechaHora: '2026-06-21T12:00:00Z', grupo: 'H', fase: 'Jornada 2' },
+    { equipoLocal: 'Bélgica', equipoVisitante: 'Irán', fechaHora: '2026-06-21T15:00:00Z', grupo: 'G', fase: 'Jornada 2' },
+    { equipoLocal: 'Uruguay', equipoVisitante: 'Cabo Verde', fechaHora: '2026-06-21T18:00:00Z', grupo: 'H', fase: 'Jornada 2' },
+    { equipoLocal: 'Nueva Zelanda', equipoVisitante: 'Egipto', fechaHora: '2026-06-21T21:00:00Z', grupo: 'G', fase: 'Jornada 2' },
+    { equipoLocal: 'Argentina', equipoVisitante: 'Austria', fechaHora: '2026-06-22T14:00:00Z', grupo: 'J', fase: 'Jornada 2' },
+    { equipoLocal: 'Jordania', equipoVisitante: 'Argelia', fechaHora: '2026-06-22T16:00:00Z', grupo: 'J', fase: 'Jornada 2' },
+    { equipoLocal: 'Francia', equipoVisitante: 'Irak', fechaHora: '2026-06-22T17:00:00Z', grupo: 'I', fase: 'Jornada 2' },
+    { equipoLocal: 'Noruega', equipoVisitante: 'Senegal', fechaHora: '2026-06-22T20:00:00Z', grupo: 'I', fase: 'Jornada 2' },
+    { equipoLocal: 'Portugal', equipoVisitante: 'Uzbekistán', fechaHora: '2026-06-23T13:00:00Z', grupo: 'K', fase: 'Jornada 2' },
+    { equipoLocal: 'Inglaterra', equipoVisitante: 'Ghana', fechaHora: '2026-06-23T16:00:00Z', grupo: 'L', fase: 'Jornada 2' },
+    { equipoLocal: 'Panamá', equipoVisitante: 'Croacia', fechaHora: '2026-06-23T19:00:00Z', grupo: 'L', fase: 'Jornada 2' },
+    { equipoLocal: 'Colombia', equipoVisitante: 'RD Congo', fechaHora: '2026-06-23T22:00:00Z', grupo: 'K', fase: 'Jornada 2' },
+    // Jornada 3
+    { equipoLocal: 'Suiza', equipoVisitante: 'Canadá', fechaHora: '2026-06-24T16:00:00Z', grupo: 'B', fase: 'Jornada 3' },
+    { equipoLocal: 'Bosnia', equipoVisitante: 'Catar', fechaHora: '2026-06-24T16:00:00Z', grupo: 'B', fase: 'Jornada 3' },
+    { equipoLocal: 'Rep. Checa', equipoVisitante: 'México', fechaHora: '2026-06-24T19:00:00Z', grupo: 'A', fase: 'Jornada 3' },
+    { equipoLocal: 'Sudáfrica', equipoVisitante: 'Rep. Corea', fechaHora: '2026-06-24T19:00:00Z', grupo: 'A', fase: 'Jornada 3' },
+    { equipoLocal: 'Marruecos', equipoVisitante: 'Haití', fechaHora: '2026-06-25T18:00:00Z', grupo: 'C', fase: 'Jornada 3' },
+    { equipoLocal: 'Escocia', equipoVisitante: 'Brasil', fechaHora: '2026-06-25T18:00:00Z', grupo: 'C', fase: 'Jornada 3' },
+    { equipoLocal: 'Paraguay', equipoVisitante: 'Australia', fechaHora: '2026-06-25T22:00:00Z', grupo: 'D', fase: 'Jornada 3' },
+    { equipoLocal: 'Turquía', equipoVisitante: 'EEUU', fechaHora: '2026-06-25T22:00:00Z', grupo: 'D', fase: 'Jornada 3' },
+    { equipoLocal: 'Curazao', equipoVisitante: 'C. Marfil', fechaHora: '2026-06-26T16:00:00Z', grupo: 'E', fase: 'Jornada 3' },
+    { equipoLocal: 'Ecuador', equipoVisitante: 'Alemania', fechaHora: '2026-06-26T16:00:00Z', grupo: 'E', fase: 'Jornada 3' },
+    { equipoLocal: 'Túnez', equipoVisitante: 'Países Bajos', fechaHora: '2026-06-26T16:00:00Z', grupo: 'F', fase: 'Jornada 3' },
+    { equipoLocal: 'Japón', equipoVisitante: 'Suecia', fechaHora: '2026-06-26T16:00:00Z', grupo: 'F', fase: 'Jornada 3' },
+    { equipoLocal: 'Uruguay', equipoVisitante: 'España', fechaHora: '2026-06-26T19:00:00Z', grupo: 'H', fase: 'Jornada 3' },
+    { equipoLocal: 'Cabo Verde', equipoVisitante: 'A. Saudí', fechaHora: '2026-06-26T19:00:00Z', grupo: 'H', fase: 'Jornada 3' },
+    { equipoLocal: 'Nueva Zelanda', equipoVisitante: 'Bélgica', fechaHora: '2026-06-26T23:00:00Z', grupo: 'G', fase: 'Jornada 3' },
+    { equipoLocal: 'Egipto', equipoVisitante: 'Irán', fechaHora: '2026-06-26T23:00:00Z', grupo: 'G', fase: 'Jornada 3' },
+    { equipoLocal: 'Senegal', equipoVisitante: 'Irak', fechaHora: '2026-06-27T13:00:00Z', grupo: 'I', fase: 'Jornada 3' },
+    { equipoLocal: 'Noruega', equipoVisitante: 'Francia', fechaHora: '2026-06-27T13:00:00Z', grupo: 'I', fase: 'Jornada 3' },
+    { equipoLocal: 'Colombia', equipoVisitante: 'Portugal', fechaHora: '2026-06-27T19:30:00Z', grupo: 'K', fase: 'Jornada 3' },
+    { equipoLocal: 'RD Congo', equipoVisitante: 'Uzbekistán', fechaHora: '2026-06-27T19:30:00Z', grupo: 'K', fase: 'Jornada 3' },
+    { equipoLocal: 'Panamá', equipoVisitante: 'Inglaterra', fechaHora: '2026-06-27T17:00:00Z', grupo: 'L', fase: 'Jornada 3' },
+    { equipoLocal: 'Croacia', equipoVisitante: 'Ghana', fechaHora: '2026-06-27T17:00:00Z', grupo: 'L', fase: 'Jornada 3' },
+    { equipoLocal: 'Jordania', equipoVisitante: 'Argentina', fechaHora: '2026-06-27T22:00:00Z', grupo: 'J', fase: 'Jornada 3' },
+    { equipoLocal: 'Argelia', equipoVisitante: 'Austria', fechaHora: '2026-06-27T22:00:00Z', grupo: 'J', fase: 'Jornada 3' },
   ];
 
-  const Octavos: { e1: string; e2: string; f: string; sl: string; sv: string; fase: string }[] = [
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-11T18:00:00Z', sl: 'W1R32', sv: 'W2R32',  fase: 'Octavos de Final' },
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-11T22:00:00Z', sl: 'W3R32', sv: 'W4R32',  fase: 'Octavos de Final' },
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-12T18:00:00Z', sl: 'W5R32', sv: 'W6R32',  fase: 'Octavos de Final' },
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-12T22:00:00Z', sl: 'W7R32', sv: 'W8R32',  fase: 'Octavos de Final' },
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-13T18:00:00Z', sl: 'W9R32', sv: 'W10R32', fase: 'Octavos de Final' },
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-13T22:00:00Z', sl: 'W11R32',sv: 'W12R32', fase: 'Octavos de Final' },
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-14T18:00:00Z', sl: 'W13R32',sv: 'W14R32', fase: 'Octavos de Final' },
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-14T22:00:00Z', sl: 'W15R32',sv: 'W16R32', fase: 'Octavos de Final' },
-  ];
-
-  const Cuartos: { e1: string; e2: string; f: string; sl: string; sv: string; fase: string }[] = [
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-17T18:00:00Z', sl: 'W1O', sv: 'W2O', fase: 'Cuartos de Final' },
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-17T22:00:00Z', sl: 'W3O', sv: 'W4O', fase: 'Cuartos de Final' },
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-18T18:00:00Z', sl: 'W5O', sv: 'W6O', fase: 'Cuartos de Final' },
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-18T22:00:00Z', sl: 'W7O', sv: 'W8O', fase: 'Cuartos de Final' },
-  ];
-
-  const Semis: { e1: string; e2: string; f: string; sl: string; sv: string; fase: string }[] = [
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-21T22:00:00Z', sl: 'W1C', sv: 'W2C', fase: 'Semifinal' },
-    { e1: 'TBD', e2: 'TBD', f: '2026-07-22T22:00:00Z', sl: 'W3C', sv: 'W4C', fase: 'Semifinal' },
-  ];
-
-  const TercerPuesto = { e1: 'TBD', e2: 'TBD', f: '2026-07-25T18:00:00Z', sl: 'L1S', sv: 'L2S', fase: 'Tercer Puesto' };
-  const Final        = { e1: 'TBD', e2: 'TBD', f: '2026-07-26T18:00:00Z', sl: 'W1S', sv: 'W2S', fase: 'Final' };
-
-  for (const p of [...R32, ...Octavos, ...Cuartos, ...Semis, TercerPuesto, Final]) {
-    await prisma.partido.create({
+  const partidos = [];
+  for (const p of partidosData) {
+    const partido = await prisma.partido.create({
       data: {
-        equipoLocal: p.e1,
-        equipoVisitante: p.e2,
-        fechaHora: new Date(p.f),
+        equipoLocal: p.equipoLocal,
+        equipoVisitante: p.equipoVisitante,
+        fechaHora: new Date(p.fechaHora),
         fase: p.fase,
-        slotLocal: p.sl,
-        slotVisitante: p.sv,
+        grupo: p.grupo,
       },
     });
+    partidos.push(partido);
   }
-  console.log(`✅ ${R32.length + Octavos.length + Cuartos.length + Semis.length + 2} partidos eliminatorios creados (equipos TBD)\n`);
+  console.log(`   ✅ ${partidos.length} partidos creados\n`);
 
-  console.log('✅ Seed completo.');
-  console.log('🔑 Admin: cédula=00000000 / password=admin2026\n');
+  if (isClean) {
+    console.log(`\n✅ Base de datos limpia e inicializada para producción.`);
+    console.log(`🔑 Credenciales del Administrador:`);
+    console.log(`   Admin:    cédula=00000000   password=admin2026\n`);
+    return;
+  }
+
+  // ─── 4. GENERAR PREDICCIONES ALEATORIAS ────────────────────────
+  console.log('🎯 Generando predicciones aleatorias para los primeros 6 partidos...');
+
+  // Tomamos los primeros 6 partidos (los que vamos a "jugar")
+  const partidosAJugar = partidos.slice(0, 6);
+  let totalPreds = 0;
+
+  for (const partido of partidosAJugar) {
+    for (const user of usuarios) {
+      const predLocal = Math.floor(Math.random() * 4);
+      const predVisitante = Math.floor(Math.random() * 4);
+
+      await prisma.prediccion.create({
+        data: {
+          usuarioId: user.id,
+          partidoId: partido.id,
+          predGolesLocal: predLocal,
+          predGolesVisitante: predVisitante,
+        },
+      });
+      totalPreds++;
+    }
+  }
+  console.log(`   ✅ ${totalPreds} predicciones creadas (${usuarios.length} usuarios × ${partidosAJugar.length} partidos)\n`);
+
+  // ─── 5. FINALIZAR 3 PARTIDOS CON RESULTADOS ───────────────────
+  console.log('🏁 Finalizando partidos con resultados simulados...');
+
+  const resultadosSimulados = [
+    { index: 0, golesLocal: 2, golesVisitante: 1 },  // México 2-1 Sudáfrica
+    { index: 1, golesLocal: 0, golesVisitante: 0 },  // Rep. Corea 0-0 Rep. Checa
+    { index: 2, golesLocal: 1, golesVisitante: 3 },  // Canadá 1-3 Bosnia
+  ];
+
+  for (const res of resultadosSimulados) {
+    const partido = partidosAJugar[res.index];
+
+    // Actualizar el partido
+    await prisma.partido.update({
+      where: { id: partido.id },
+      data: {
+        golesLocal: res.golesLocal,
+        golesVisitante: res.golesVisitante,
+        estado: 'Finalizado',
+      },
+    });
+
+    console.log(`   ⚽ ${partido.equipoLocal} ${res.golesLocal}-${res.golesVisitante} ${partido.equipoVisitante}`);
+
+    // Calcular puntos para cada predicción
+    const predicciones = await prisma.prediccion.findMany({
+      where: { partidoId: partido.id },
+      include: { usuario: true },
+    });
+
+    let exactos = 0, parciales = 0, fallos = 0;
+
+    for (const pred of predicciones) {
+      let puntos = 0;
+      let tipo = 'fallo';
+
+      // Resultado exacto
+      if (pred.predGolesLocal === res.golesLocal && pred.predGolesVisitante === res.golesVisitante) {
+        puntos = 3;
+        tipo = 'exacto';
+        exactos++;
+      }
+      // Resultado parcial (acertó el ganador o empate)
+      else {
+        const predResultado = Math.sign(pred.predGolesLocal - pred.predGolesVisitante);
+        const realResultado = Math.sign(res.golesLocal - res.golesVisitante);
+        if (predResultado === realResultado) {
+          puntos = 1;
+          tipo = 'parcial';
+          parciales++;
+        } else {
+          fallos++;
+        }
+      }
+
+      // Guardar puntos en predicción
+      await prisma.prediccion.update({
+        where: { id: pred.id },
+        data: { puntosObtenidos: puntos },
+      });
+
+      // Sumar al usuario
+      if (puntos > 0) {
+        await prisma.usuario.update({
+          where: { id: pred.usuarioId },
+          data: { puntosTotales: { increment: puntos } },
+        });
+      }
+    }
+
+    console.log(`      → 🎯 ${exactos} exactos | ✅ ${parciales} parciales | ❌ ${fallos} fallos`);
+  }
+
+  // ─── 6. MOSTRAR RANKING FINAL ─────────────────────────────────
+  console.log('\n🏆 RANKING ACTUAL:');
+  console.log('─'.repeat(50));
+
+  const ranking = await prisma.usuario.findMany({
+    where: { rol: 'USER' },
+    orderBy: { puntosTotales: 'desc' },
+    select: { nombre: true, cedula: true, puntosTotales: true },
+  });
+
+  ranking.forEach((u, i) => {
+    const medalla = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`;
+    console.log(`   ${medalla} ${u.nombre.padEnd(20)} ${u.puntosTotales} pts`);
+  });
+
+  console.log('─'.repeat(50));
+  console.log(`\n✅ Prueba completa finalizada exitosamente.`);
+  console.log(`\n🔑 Credenciales:`);
+  console.log(`   Admin:    cédula=00000000   password=admin2026`);
+  console.log(`   Usuarios: cédula=12345678   password=clave123`);
+  console.log(`             (y las demás cédulas creadas arriba)\n`);
 }
 
 main()
-  .catch((e) => { console.error('❌ Error:', e); process.exit(1); })
-  .finally(async () => { await prisma.$disconnect(); });
+  .catch((e) => {
+    console.error('❌ Error:', e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

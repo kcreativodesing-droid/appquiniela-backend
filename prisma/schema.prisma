@@ -46,9 +46,6 @@ model Partido {
   estado          EstadoPartido @default(Pendiente)
   fase            String        @default("Grupos")
   grupo           String?
-  // Para fases eliminatorias: referencia al slot de origen
-  slotLocal       String?       @map("slot_local")   // e.g. "1A" = 1er lugar grupo A
-  slotVisitante   String?       @map("slot_visitante")
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
 
@@ -57,7 +54,6 @@ model Partido {
 
   @@index([estado])
   @@index([fechaHora])
-  @@index([fase])
   @@map("partidos")
 }
 
@@ -85,6 +81,20 @@ model Prediccion {
 }
 
 // ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+enum EstadoPartido {
+  Pendiente
+  EnJuego   @map("En Juego")
+  Finalizado
+}
+
+enum Rol {
+  ADMIN
+  USER
+}
+
+// ─────────────────────────────────────────────
 // TABLA: push_subscriptions
 // ─────────────────────────────────────────────
 model PushSubscription {
@@ -99,18 +109,4 @@ model PushSubscription {
 
   @@index([usuarioId])
   @@map("push_subscriptions")
-}
-
-// ─────────────────────────────────────────────
-// ENUMS
-// ─────────────────────────────────────────────
-enum EstadoPartido {
-  Pendiente
-  EnJuego   @map("En Juego")
-  Finalizado
-}
-
-enum Rol {
-  ADMIN
-  USER
 }
