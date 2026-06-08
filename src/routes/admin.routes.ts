@@ -100,6 +100,21 @@ router.post('/partidos/:id/calcular', async (req: Request, res: Response) => {
   return res.json({ message: 'Puntos recalculados', ...resumen });
 });
 
+// ── POST /api/admin/sync-api ─────────────────────────────────────
+// Sincronizar partidos desde la API-Football
+router.post('/sync-api', async (_req: Request, res: Response) => {
+  try {
+    const { syncMatchesFromAPI } = await import('../services/apiFootball.service');
+    const result = await syncMatchesFromAPI();
+    if (!result.success) {
+      return res.status(500).json({ error: result.message });
+    }
+    return res.json(result);
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message || 'Error al procesar la sincronización.' });
+  }
+});
+
 // ── Función interna: calcular puntos de un partido ─────────────
 async function calcularPuntosPartido(
   partidoId: string,
