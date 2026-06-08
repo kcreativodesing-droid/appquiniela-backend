@@ -5,14 +5,14 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "build": "npx prisma generate && tsc",
+    "build": "node node_modules/prisma/build/index.js generate && tsc",
     "start": "node dist/index.js",
-    "db:migrate": "npx prisma migrate dev",
-    "db:generate": "npx prisma generate",
+    "db:migrate": "node node_modules/prisma/build/index.js migrate dev",
+    "db:generate": "node node_modules/prisma/build/index.js generate",
     "db:seed": "npx ts-node prisma/seed.ts",
     "db:seed:clean": "npx ts-node prisma/seed.ts --clean",
-    "db:studio": "npx prisma studio",
-    "db:reset": "npx prisma migrate reset --force"
+    "db:studio": "node node_modules/prisma/build/index.js studio",
+    "db:reset": "node node_modules/prisma/build/index.js migrate reset --force"
   },
   "dependencies": {
     "@prisma/client": "^5.14.0",
