@@ -69,13 +69,22 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
     });
   }
 
-  // Upsert: crear si no existe, actualizar si ya existe
-  const prediccion = await prisma.prediccion.upsert({
+  // Verificar si ya existe una predicción para este usuario y partido
+  const prediccionExistente = await prisma.prediccion.findUnique({
     where: {
       usuarioId_partidoId: { usuarioId, partidoId },
     },
-    update: { predGolesLocal, predGolesVisitante },
-    create: { usuarioId, partidoId, predGolesLocal, predGolesVisitante },
+  });
+
+  if (prediccionExistente) {
+    return res.status(400).json({
+      error: 'Ya has guardado una predicción para este partido y no se puede modificar',
+    });
+  }
+
+  // Crear la predicción
+  const prediccion = await prisma.prediccion.create({
+    data: { usuarioId, partidoId, predGolesLocal, predGolesVisitante },
     include: {
       partido: {
         select: {
