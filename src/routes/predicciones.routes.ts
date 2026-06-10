@@ -60,10 +60,10 @@ router.post('/', authMiddleware, async (req: Request, res: Response) => {
     });
   }
 
-  // Verificar deadline: bloquear 5 minutos antes del partido
-  const ahora = new Date();
-  const deadline = new Date(partido.fechaHora.getTime() - 5 * 60 * 1000);
-  if (ahora >= deadline) {
+  // Verificar deadline: bloquear 5 minutos antes del partido (comparación robusta en ms)
+  const ahoraMs = Date.now();
+  const deadlineMs = new Date(partido.fechaHora).getTime() - (5 * 60 * 1000);
+  if (ahoraMs >= deadlineMs) {
     return res.status(400).json({
       error: 'El plazo para ingresar predicciones ha cerrado (5 minutos antes del partido)',
     });
